@@ -115,9 +115,10 @@ class CameraGroup(pygame.sprite.Group):
             self.display_surface.blit(sprite.image, offset_pos)
 
 class Level:
-    def __init__(self, map_file):
+    def __init__(self, map_file, level_number):
         # Display surface
         self.display_surface = pygame.display.get_surface()
+        self.level_number = level_number
         
         # Sprite groups
         self.visible_sprites = CameraGroup()
@@ -128,8 +129,9 @@ class Level:
         self.water_sprites = pygame.sprite.Group()
         self.exit_sprites = pygame.sprite.Group()
         
-        # UI
+        # UI & State
         self.level_complete = False
+        self.game_over = False
         self.score = 0
         self.font = pygame.font.SysFont('Arial', 32, bold=True)
         self.coin_gui_image = pygame.image.load(f'{TILE_ASSETS}/hud_coin.png').convert_alpha()
@@ -144,20 +146,27 @@ class Level:
             with open(map_file, 'r') as f:
                 lines = f.readlines()
                 
-            # Find "level 1:" header and skip to actual map data
+            # Find level section
+            header = f"level {self.level_number}:"
             start_index = -1
             for i, line in enumerate(lines):
-                if "level 1:" in line.lower():
+                if header in line.lower():
                     start_index = i + 1
                     break
             
             if start_index == -1:
-                print("Level 1 not found in maps.txt")
+                print(f"Level {self.level_number} not found in {map_file}")
                 return
 
+            # Find end of level (next level header or EOF)
+            end_index = len(lines)
+            for i in range(start_index, len(lines)):
+                if "level " in lines[i].lower() and ":" in lines[i]:
+                    end_index = i
+                    break
+
             # map_data might have empty lines or trailing spaces
-            # Let's clean it up
-            map_data = [line.removesuffix('\n') for line in lines[start_index:]]
+            map_data = [line.removesuffix('\n') for line in lines[start_index:end_index]]
             
             # Calculate Level Dimensions
             self.level_height = len(map_data) * TILE_SIZE
@@ -257,7 +266,11 @@ class Level:
         # For now, let's keep him from falling into the "void" at the bottom
         # if the user doesn't want void, we might block him or kill him
         if self.player.rect.top > self.level_height:
-            self.player.health = 0 # Fall into the void = Game Over
+            self.player.health = 0
+            self.game_over = True
+        
+        if self.player.health <= 0:
+            self.game_over = True
 
     def run(self):
         # Run the level logic
