@@ -1,0 +1,29 @@
+level 1:
+# Tiles from https://kenney.nl/assets/new-platformer-pack
+# Legend:
+# - : Ground / Platform
+# C : Coin
+# S : Spikes
+# B : Box / Crate
+# W : Water
+# P : Player Spawn (optional, defaults to start)
+# 1 : Start Flag
+# E : Exit Flag
+
+---------------------------------------------------------------------------------
+                                                                                
+                                                                                E
+                                                      C   C   C       -----------
+                                                    -------------    -
+                                                                    -
+                                  B   B                            -
+             C   C              ----------------                  -
+           ---------                               C             -
+                                                 -----          -
+                                                               -
+1     S  S               B                                    -
+----------------------------------   --------------   ---------------------------
+WWWWWWWWWWWWWWWWWWWWWWWWWWWWWWWWWWWWWWWWWWWWWWWWWWWWWWWWWWWWWWWWWWWWWWWWWWWWWWWWW
+WWWWWWWWWWWWWWWWWWWWWWWWWWWWWWWWWWWWWWWWWWWWWWWWWWWWWWWWWWWWWWWWWWWWWWWWWWWWWWWWW
+WWWWWWWWWWWWWWWWWWWWWWWWWWWWWWWWWWWWWWWWWWWWWWWWWWWWWWWWWWWWWWWWWWWWWWWWWWWWWWWWW
+---------------------------------------------------------------------------------
