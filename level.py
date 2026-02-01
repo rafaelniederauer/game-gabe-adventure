@@ -84,6 +84,75 @@ class Water(pygame.sprite.Sprite):
         self.image = pygame.image.load(f'{TILE_ASSETS}/water_top.png').convert_alpha()
         self.rect = self.image.get_rect(topleft=pos)
 
+class Enemy(pygame.sprite.Sprite):
+    def __init__(self, pos, groups, obstacle_sprites):
+        super().__init__(groups)
+        self.sprite_type = 'enemy'
+        
+        # Load assets
+        self.frames = []
+        raw_files = ['character_beige_walk_a.png', 'character_beige_walk_b.png']
+        for filename in raw_files:
+            image = pygame.image.load(f'{PLAYER_ASSETS}/{filename}').convert_alpha()
+            scaled_image = pygame.transform.scale(image, (96, 96))
+            self.frames.append(scaled_image)
+            
+        self.frame_index = 0
+        self.animation_speed = 0.1
+        self.image = self.frames[self.frame_index]
+        self.rect = self.image.get_rect(topleft=pos)
+        self.hitbox = self.rect.inflate(-10, -5)
+        
+        # Movement
+        self.obstacle_sprites = obstacle_sprites
+        self.direction = pygame.math.Vector2(1, 0)
+        self.speed = 3
+        self.gravity = GRAVITY
+        self.vertical_direction = 0
+
+    def animate(self):
+        self.frame_index += self.animation_speed
+        if self.frame_index >= len(self.frames):
+            self.frame_index = 0
+            
+        image = self.frames[int(self.frame_index)]
+        if self.direction.x > 0:
+            self.image = image
+        else:
+            self.image = pygame.transform.flip(image, True, False)
+
+    def move(self):
+        # Horizontal movement
+        self.rect.x += self.direction.x * self.speed
+        
+        # Collision with obstacles
+        for sprite in self.obstacle_sprites:
+            if sprite.rect.colliderect(self.rect):
+                if self.direction.x > 0:
+                    self.rect.right = sprite.rect.left
+                    self.direction.x = -1
+                elif self.direction.x < -0:
+                    self.rect.left = sprite.rect.right
+                    self.direction.x = 1
+        
+        # Apply gravity
+        self.vertical_direction += self.gravity
+        self.rect.y += self.vertical_direction
+        
+        # Vertical collision
+        for sprite in self.obstacle_sprites:
+            if sprite.rect.colliderect(self.rect):
+                if self.vertical_direction > 0:
+                    self.rect.bottom = sprite.rect.top
+                    self.vertical_direction = 0
+                elif self.vertical_direction < 0:
+                    self.rect.top = sprite.rect.bottom
+                    self.vertical_direction = 0
+
+    def update(self):
+        self.move()
+        self.animate()
+
 class CameraGroup(pygame.sprite.Group):
     def __init__(self):
         super().__init__()
@@ -128,6 +197,7 @@ class Level:
         self.hazard_sprites = pygame.sprite.Group()
         self.water_sprites = pygame.sprite.Group()
         self.exit_sprites = pygame.sprite.Group()
+        self.enemy_sprites = pygame.sprite.Group()
         
         # UI & State
         self.level_complete = False
@@ -193,6 +263,8 @@ class Level:
                         self.spawn_pos = (x, y)
                     elif cell == 'E':
                         Tile((x, y), [self.visible_sprites, self.exit_sprites], 'exit')
+                    elif cell == 'X':
+                        Enemy((x, y), [self.visible_sprites, self.enemy_sprites, self.active_sprites], self.obstacle_sprites)
             
             # Place Player at a starting position
             if hasattr(self, 'spawn_pos'):
@@ -224,6 +296,10 @@ class Level:
             self.player.in_water = True
         else:
             self.player.in_water = False
+
+    def enemy_collision(self):
+        if pygame.sprite.spritecollide(self.player, self.enemy_sprites, False):
+            self.player.get_damage()
 
     def check_win(self):
         if pygame.sprite.spritecollide(self.player, self.exit_sprites, False):
@@ -279,6 +355,7 @@ class Level:
             self.coin_collision()
             self.hazard_collision()
             self.water_collision()
+            self.enemy_collision()
             self.boundary_check()
             self.check_win()
             

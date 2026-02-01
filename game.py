@@ -11,7 +11,7 @@ class Game:
         
         # Level management
         self.current_level = start_level
-        self.max_levels = 2 # We have level 1 and level 2
+        self.max_levels = 3 # We have level 1, 2 and 3
         self.level = Level('maps.txt', self.current_level)
         self.game_finished = False
 
