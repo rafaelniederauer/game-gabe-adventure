@@ -146,6 +146,8 @@ class Player(pygame.sprite.Sprite):
                 elif self.direction.y < 0: # Jumping
                     self.rect.top = sprite.rect.bottom
                     self.direction.y = 0
+                    if hasattr(sprite, 'hit'):
+                        sprite.hit()
                 else: # Standing still but overlapping (e.g., spawn)
                     if self.rect.centery < sprite.rect.centery:
                         self.rect.bottom = sprite.rect.top

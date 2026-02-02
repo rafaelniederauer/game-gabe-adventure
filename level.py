@@ -153,6 +153,128 @@ class Enemy(pygame.sprite.Sprite):
         self.move()
         self.animate()
 
+class FollowerEnemy(Enemy):
+    def __init__(self, pos, groups, obstacle_sprites, player=None):
+        super().__init__(pos, groups, obstacle_sprites)
+        self.sprite_type = 'follower_enemy'
+        self.player = player
+        
+        # Adjust look - maybe different color or scale
+        # For now, let's use base Enemy frames but keep them separate
+        self.frames = []
+        raw_files = ['character_pink_walk_a.png', 'character_pink_walk_b.png']
+        for filename in raw_files:
+            try:
+                image = pygame.image.load(f'{PLAYER_ASSETS}/{filename}').convert_alpha()
+            except:
+                # Fallback if pink asset doesn't exist
+                image = pygame.image.load(f'{PLAYER_ASSETS}/character_beige_walk_a.png').convert_alpha()
+            scaled_image = pygame.transform.scale(image, (96, 96))
+            self.frames.append(scaled_image)
+            
+        self.speed = 2 # Slightly slower than normal enemy to be fair
+        self.follow_distance = 600 # Only follow if within range
+
+    def move(self):
+        if self.player:
+            # Simple horizontal follow
+            dist = self.player.rect.centerx - self.rect.centerx
+            if abs(dist) < self.follow_distance:
+                if dist > 10:
+                    self.direction.x = 1
+                elif dist < -10:
+                    self.direction.x = -1
+                else:
+                    self.direction.x = 0
+            else:
+                # If player is far, stand still or pace (let's pacing for now like normal enemy)
+                pass #pacings handled by base? No, base just sets direction.x = -1 on collision.
+        
+        # Horizontal movement
+        self.rect.x += self.direction.x * self.speed
+        
+        # Collision with obstacles
+        for sprite in self.obstacle_sprites:
+            if sprite.rect.colliderect(self.rect):
+                if self.direction.x > 0:
+                    self.rect.right = sprite.rect.left
+                elif self.direction.x < 0:
+                    self.rect.left = sprite.rect.right
+        
+        # Apply gravity
+        self.vertical_direction += self.gravity
+        self.rect.y += self.vertical_direction
+        
+        # Vertical collision
+        for sprite in self.obstacle_sprites:
+            if sprite.rect.colliderect(self.rect):
+                if self.vertical_direction > 0:
+                    self.rect.bottom = sprite.rect.top
+                    self.vertical_direction = 0
+                elif self.vertical_direction < 0:
+                    self.rect.top = sprite.rect.bottom
+                    self.vertical_direction = 0
+
+class Heart(pygame.sprite.Sprite):
+    def __init__(self, pos, groups):
+        super().__init__(groups)
+        self.sprite_type = 'heart'
+        try:
+            self.image = pygame.image.load(f'{TILE_ASSETS}/heart.png').convert_alpha()
+        except:
+            # Fallback to HUD heart if tile asset not found
+            self.image = pygame.image.load(f'{TILE_ASSETS}/hud_heart.png').convert_alpha()
+        
+        self.rect = self.image.get_rect(center=pos)
+        self.direction = pygame.math.Vector2(0, -1)
+        self.vel = 3
+        self.spawn_pos_y = pos[1]
+        self.float_range = 10
+        self.timer = 0
+
+    def update(self):
+        # Initial pop up
+        if self.timer < 10:
+            self.rect.y += self.direction.y * self.vel
+            self.timer += 1
+        else:
+            # Floating effect
+            self.rect.y = self.spawn_pos_y - 20 + (pygame.time.get_ticks() // 200 % 2) * 2
+
+class LuckyBlock(pygame.sprite.Sprite):
+    def __init__(self, pos, groups, visible_sprites, active_sprites, item_sprites):
+        super().__init__(groups)
+        self.sprite_type = 'lucky_block'
+        self.image = pygame.image.load(f'{TILE_ASSETS}/block_exclamation.png').convert_alpha()
+        self.rect = self.image.get_rect(topleft=pos)
+        self.visible_sprites = visible_sprites
+        self.active_sprites = active_sprites
+        self.item_sprites = item_sprites
+        self.hit_count = 0
+        self.original_y = self.rect.y
+        self.is_bouncing = False
+        self.bounce_timer = 0
+
+    def hit(self):
+        if self.hit_count == 0:
+            self.hit_count += 1
+            self.image = pygame.image.load(f'{TILE_ASSETS}/block_empty.png').convert_alpha()
+            # Spawn heart
+            Heart((self.rect.centerx, self.rect.top), [self.visible_sprites, self.active_sprites, self.item_sprites])
+            self.is_bouncing = True
+            self.bounce_timer = 0
+
+    def update(self):
+        if self.is_bouncing:
+            self.bounce_timer += 1
+            if self.bounce_timer <= 5:
+                self.rect.y -= 2
+            elif self.bounce_timer <= 10:
+                self.rect.y += 2
+            else:
+                self.rect.y = self.original_y
+                self.is_bouncing = False
+
 class CameraGroup(pygame.sprite.Group):
     def __init__(self):
         super().__init__()
@@ -198,6 +320,7 @@ class Level:
         self.water_sprites = pygame.sprite.Group()
         self.exit_sprites = pygame.sprite.Group()
         self.enemy_sprites = pygame.sprite.Group()
+        self.item_sprites = pygame.sprite.Group()
         
         # UI & State
         self.level_complete = False
@@ -265,6 +388,10 @@ class Level:
                         Tile((x, y), [self.visible_sprites, self.exit_sprites], 'exit')
                     elif cell == 'X':
                         Enemy((x, y), [self.visible_sprites, self.enemy_sprites, self.active_sprites], self.obstacle_sprites)
+                    elif cell == 'Y':
+                        FollowerEnemy((x, y), [self.visible_sprites, self.enemy_sprites, self.active_sprites], self.obstacle_sprites)
+                    elif cell == '?':
+                        LuckyBlock((x, y), [self.visible_sprites, self.obstacle_sprites, self.active_sprites], self.visible_sprites, self.active_sprites, self.item_sprites)
             
             # Place Player at a starting position
             if hasattr(self, 'spawn_pos'):
@@ -277,7 +404,13 @@ class Level:
                     lowest = max(floor_platforms, key=lambda s: s.rect.y)
                     spawn_pos = (lowest.rect.x, lowest.rect.y - 100)
 
+
             self.player = Player(spawn_pos, [self.visible_sprites, self.active_sprites], self.obstacle_sprites)
+        
+            # Pass player reference to follower enemies
+            for sprite in self.enemy_sprites:
+                if isinstance(sprite, FollowerEnemy):
+                    sprite.player = self.player
             
         except FileNotFoundError:
             print(f"File {map_file} not found")
@@ -300,6 +433,12 @@ class Level:
     def enemy_collision(self):
         if pygame.sprite.spritecollide(self.player, self.enemy_sprites, False):
             self.player.get_damage()
+
+    def item_collision(self):
+        collided_items = pygame.sprite.spritecollide(self.player, self.item_sprites, True)
+        for item in collided_items:
+            if item.sprite_type == 'heart':
+                self.player.health = min(self.player.health + 1, START_HEALTH)
 
     def check_win(self):
         if pygame.sprite.spritecollide(self.player, self.exit_sprites, False):
@@ -356,6 +495,7 @@ class Level:
             self.hazard_collision()
             self.water_collision()
             self.enemy_collision()
+            self.item_collision()
             self.boundary_check()
             self.check_win()
             
