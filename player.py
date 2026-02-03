@@ -30,16 +30,19 @@ class Player(pygame.sprite.Sprite):
         self.is_hurt = False
         self.hurt_time = 0
         self.in_water = False
+        self.climbing = False
+        self.ladder_jump_timer = 0
 
     def import_assets(self):
         # We'll use the purple character for Gabe
-        self.animations = {'idle': [], 'walk': [], 'jump': [], 'fall': []}
+        self.animations = {'idle': [], 'walk': [], 'jump': [], 'fall': [], 'climb': []}
         
         raw_assets = {
             'idle': ['character_purple_idle.png', 'character_purple_front.png'],
             'walk': ['character_purple_walk_a.png', 'character_purple_walk_b.png'],
             'jump': ['character_purple_jump.png'],
-            'fall': ['character_purple_jump.png']
+            'fall': ['character_purple_jump.png'],
+            'climb': ['character_purple_climb_a.png', 'character_purple_climb_b.png']
         }
         
         for animation_name, files in raw_assets.items():
@@ -53,9 +56,13 @@ class Player(pygame.sprite.Sprite):
         animation = self.animations[self.status]
         
         # Loop over frame index
-        self.frame_index += self.animation_speed
-        if self.frame_index >= len(animation):
-            self.frame_index = 0
+        if self.status == 'climb' and self.direction.y == 0:
+            # Don't advance animation if on ladder but not moving
+            pass
+        else:
+            self.frame_index += self.animation_speed
+            if self.frame_index >= len(animation):
+                self.frame_index = 0
             
         image = animation[int(self.frame_index)]
         if self.facing_right:
@@ -64,7 +71,9 @@ class Player(pygame.sprite.Sprite):
             self.image = pygame.transform.flip(image, True, False)
 
     def get_status(self):
-        if self.direction.y < 0:
+        if self.climbing:
+            self.status = 'climb'
+        elif self.direction.y < 0:
             self.status = 'jump'
         elif self.direction.y > 1: # Some threshold for gravity
             self.status = 'fall'
@@ -92,17 +101,31 @@ class Player(pygame.sprite.Sprite):
             self.speed = WALK_SPEED if not self.in_water else WATER_SPEED
 
         if keys[pygame.K_SPACE]:
-            if self.on_ground:
+            if self.on_ground or self.climbing:
                 self.jump()
             elif self.in_water:
                 self.swim()
+            
+        if self.climbing and not (pygame.time.get_ticks() - self.ladder_jump_timer < 200):
+            if keys[pygame.K_UP]:
+                self.direction.y = -1
+            elif keys[pygame.K_DOWN]:
+                self.direction.y = 1
+            else:
+                self.direction.y = 0
 
     def apply_gravity(self):
-        gravity = self.gravity if not self.in_water else WATER_GRAVITY
-        self.direction.y += gravity
-        self.rect.y += self.direction.y
+        if self.climbing:
+             self.rect.y += self.direction.y * 4
+        else:
+            gravity = self.gravity if not self.in_water else WATER_GRAVITY
+            self.direction.y += gravity
+            self.rect.y += self.direction.y
 
     def jump(self):
+        if self.climbing:
+            self.ladder_jump_timer = pygame.time.get_ticks()
+            self.climbing = False
         self.direction.y = self.jump_speed
 
     def swim(self):

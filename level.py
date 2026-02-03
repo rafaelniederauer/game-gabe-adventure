@@ -275,6 +275,13 @@ class LuckyBlock(pygame.sprite.Sprite):
                 self.rect.y = self.original_y
                 self.is_bouncing = False
 
+class Ladder(pygame.sprite.Sprite):
+    def __init__(self, pos, groups):
+        super().__init__(groups)
+        self.sprite_type = 'ladder'
+        self.image = pygame.image.load(f'{TILE_ASSETS}/ladder_middle.png').convert_alpha()
+        self.rect = self.image.get_rect(topleft=pos)
+
 class CameraGroup(pygame.sprite.Group):
     def __init__(self):
         super().__init__()
@@ -321,6 +328,7 @@ class Level:
         self.exit_sprites = pygame.sprite.Group()
         self.enemy_sprites = pygame.sprite.Group()
         self.item_sprites = pygame.sprite.Group()
+        self.ladder_sprites = pygame.sprite.Group()
         
         # UI & State
         self.level_complete = False
@@ -392,6 +400,8 @@ class Level:
                         FollowerEnemy((x, y), [self.visible_sprites, self.enemy_sprites, self.active_sprites], self.obstacle_sprites)
                     elif cell == '?':
                         LuckyBlock((x, y), [self.visible_sprites, self.obstacle_sprites, self.active_sprites], self.visible_sprites, self.active_sprites, self.item_sprites)
+                    elif cell == '#':
+                        Ladder((x, y), [self.visible_sprites, self.ladder_sprites])
             
             # Place Player at a starting position
             if hasattr(self, 'spawn_pos'):
@@ -439,6 +449,16 @@ class Level:
         for item in collided_items:
             if item.sprite_type == 'heart':
                 self.player.health = min(self.player.health + 1, START_HEALTH)
+
+    def ladder_collision(self):
+        if pygame.sprite.spritecollide(self.player, self.ladder_sprites, False):
+            # Only start climbing if we didn't just jump off a ladder
+            if pygame.time.get_ticks() - self.player.ladder_jump_timer > 200:
+                self.player.climbing = True
+            else:
+                self.player.climbing = False
+        else:
+            self.player.climbing = False
 
     def check_win(self):
         if pygame.sprite.spritecollide(self.player, self.exit_sprites, False):
@@ -490,6 +510,7 @@ class Level:
     def run(self):
         # Run the level logic
         if not self.level_complete and self.player.health > 0:
+            self.ladder_collision()
             self.active_sprites.update()
             self.coin_collision()
             self.hazard_collision()

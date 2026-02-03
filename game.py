@@ -11,9 +11,20 @@ class Game:
         
         # Level management
         self.current_level = start_level
-        self.max_levels = 3 # We have level 1, 2 and 3
+        self.max_levels = self.get_max_levels()
         self.level = Level('maps.txt', self.current_level)
         self.game_finished = False
+
+    def get_max_levels(self):
+        try:
+            with open('maps.txt', 'r') as f:
+                content = f.read().lower()
+                # Count occurrences of "level " followed by a number and colon
+                import re
+                levels = re.findall(r'level \d+:', content)
+                return len(levels)
+        except:
+            return 3 # Fallback
 
     def reset_level(self):
         self.level = Level('maps.txt', self.current_level)
