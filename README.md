@@ -2,6 +2,8 @@
 
 Welcome to **Gabe Adventure**, a 2D platformer game featuring Gabe, an 11-year-old explorer! Navigate through challenging levels, collect coins, push obstacles, and dodge traps to reach the end of your journey.
 
+![Gabe Adventure Gameplay](screenshot.png)
+
 ## 🎮 Gameplay Features
 
 -   **Dynamic Level Loading**: Levels are parsed directly from a text file (`maps.txt`), allowing for easy editing and expansion.
