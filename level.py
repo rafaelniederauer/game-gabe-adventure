@@ -3,19 +3,31 @@ from settings import *
 from player import Player
 
 class Tile(pygame.sprite.Sprite):
-    def __init__(self, pos, groups, sprite_type):
+    def __init__(self, pos, groups, sprite_type, biome='grass'):
         super().__init__(groups)
         self.sprite_type = sprite_type
-        path = f'{TILE_ASSETS}/terrain_grass_block.png'
-        if sprite_type == 'spikes': path = f'{TILE_ASSETS}/spikes.png'
-        elif sprite_type == 'exit': path = f'{TILE_ASSETS}/flag_red_a.png'
-        elif sprite_type == 'start': path = f'{TILE_ASSETS}/flag_green_a.png'
+        
+        # Ground block depends on biome
+        if sprite_type == 'ground':
+            path = f'{TILE_ASSETS}/terrain_{biome}_block.png'
+        elif sprite_type == 'spikes': 
+            path = f'{TILE_ASSETS}/spikes.png'
+        elif sprite_type == 'exit': 
+            path = f'{TILE_ASSETS}/flag_red_a.png'
+        elif sprite_type == 'start': 
+            path = f'{TILE_ASSETS}/flag_green_a.png'
+        else:
+            path = f'{TILE_ASSETS}/terrain_grass_block.png'
         
         try:
             self.image = pygame.image.load(path).convert_alpha()
         except:
-            self.image = pygame.Surface((64, 64))
-            self.image.fill(WHITE)
+            # Fallback for biome blocks if specific one not found
+            if sprite_type == 'ground':
+                self.image = pygame.image.load(f'{TILE_ASSETS}/terrain_grass_block.png').convert_alpha()
+            else:
+                self.image = pygame.Surface((64, 64))
+                self.image.fill(WHITE)
             
         self.rect = self.image.get_rect(topleft=pos)
 
@@ -330,6 +342,10 @@ class Level:
         self.item_sprites = pygame.sprite.Group()
         self.ladder_sprites = pygame.sprite.Group()
         
+        # Biome & Background
+        self.biome = 'grass'
+        self.background_image = None
+        
         # UI & State
         self.level_complete = False
         self.game_over = False
@@ -367,7 +383,16 @@ class Level:
                     break
 
             # map_data might have empty lines or trailing spaces
-            map_data = [line.removesuffix('\n') for line in lines[start_index:end_index]]
+            map_data = []
+            for line in lines[start_index:end_index]:
+                line = line.removesuffix('\n')
+                if line.startswith('biome:'):
+                    self.biome = line.split(':')[1].strip()
+                    continue
+                map_data.append(line)
+            
+            # Load background after parsing biome
+            self.load_background()
             
             # Calculate Level Dimensions
             self.level_height = len(map_data) * TILE_SIZE
@@ -380,20 +405,28 @@ class Level:
                     x = col_index * TILE_SIZE
                     y = row_index * TILE_SIZE
                     if cell == '-':
-                        Tile((x, y), [self.visible_sprites, self.obstacle_sprites], 'ground')
+                        # Match Tile class biome names
+                        tile_biome = self.biome
+                        if tile_biome == 'forest': tile_biome = 'grass'
+                        if tile_biome == 'mushroom': tile_biome = 'purple'
+                        if tile_biome == 'stone': tile_biome = 'stone'
+                        if tile_biome == 'desert': tile_biome = 'sand'
+                        if tile_biome == 'snow': tile_biome = 'snow'
+                        
+                        Tile((x, y), [self.visible_sprites, self.obstacle_sprites], 'ground', tile_biome)
                     elif cell == 'B':
                         Box((x, y), [self.visible_sprites, self.active_sprites, self.obstacle_sprites], self.obstacle_sprites)
                     elif cell == 'C':
                         Coin((x, y), [self.visible_sprites, self.coin_sprites, self.active_sprites])
                     elif cell == 'S':
-                        Tile((x, y), [self.visible_sprites, self.hazard_sprites], 'spikes')
+                        Tile((x, y), [self.visible_sprites, self.hazard_sprites], 'spikes', self.biome)
                     elif cell == 'W':
                         Water((x, y), [self.visible_sprites, self.water_sprites])
                     elif cell == '1':
-                        Tile((x, y), [self.visible_sprites], 'start')
+                        Tile((x, y), [self.visible_sprites], 'start', self.biome)
                         self.spawn_pos = (x, y)
                     elif cell == 'E':
-                        Tile((x, y), [self.visible_sprites, self.exit_sprites], 'exit')
+                        Tile((x, y), [self.visible_sprites, self.exit_sprites], 'exit', self.biome)
                     elif cell == 'X':
                         Enemy((x, y), [self.visible_sprites, self.enemy_sprites, self.active_sprites], self.obstacle_sprites)
                     elif cell == 'Y':
@@ -424,6 +457,37 @@ class Level:
             
         except FileNotFoundError:
             print(f"File {map_file} not found")
+
+    def load_background(self):
+        biome_bg = {
+            'forest': 'background_color_trees.png',
+            'desert': 'background_color_desert.png',
+            'stone': 'background_color_hills.png',
+            'mushroom': 'background_color_mushrooms.png',
+            'snow': 'background_clouds.png'
+        }
+        bg_file = biome_bg.get(self.biome, 'background_solid_sky.png')
+        try:
+            # Load and scale to screen size using smoothscale to prevent pixelation
+            raw_img = pygame.image.load(f'{BACKGROUND_ASSETS}/{bg_file}').convert()
+            # Scale to screen height, maintain aspect ratio? 
+            # Actually for Kenney gradients, scaling to screen is fine but use smoothscale.
+            self.background_image = pygame.transform.smoothscale(raw_img, (SCREEN_WIDTH, SCREEN_HEIGHT))
+        except:
+            self.background_image = None
+
+    def draw_background(self):
+        if self.background_image:
+            # Simple parallax: background moves slower than the world
+            # Background offset = camera offset * factor
+            parallax_factor = 0.5
+            bg_x = -(self.visible_sprites.offset.x * parallax_factor) % SCREEN_WIDTH
+            
+            # Draw two instances for seamless tiling
+            self.display_surface.blit(self.background_image, (bg_x - SCREEN_WIDTH, 0))
+            self.display_surface.blit(self.background_image, (bg_x, 0))
+        else:
+            self.display_surface.fill(BG_COLOR)
 
     def coin_collision(self):
         collided_coins = pygame.sprite.spritecollide(self.player, self.coin_sprites, True)
@@ -520,6 +584,7 @@ class Level:
             self.boundary_check()
             self.check_win()
             
+        self.draw_background()
         self.visible_sprites.custom_draw(self.player)
         self.draw_ui()
         

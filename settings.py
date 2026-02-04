@@ -29,3 +29,4 @@ BOX_SPEED = 2
 ASSET_PATH = 'kenney_new-platformer-pack-1/Sprites'
 PLAYER_ASSETS = f'{ASSET_PATH}/Characters/Default'
 TILE_ASSETS = f'{ASSET_PATH}/Tiles/Default'
+BACKGROUND_ASSETS = f'{ASSET_PATH}/Backgrounds/Default'

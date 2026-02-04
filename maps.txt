@@ -12,8 +12,9 @@
 # Y : Follower Enemy
 # ? : Lucky Block
 level 1:
+biome: forest
 
----------------------------------------------------------------------------------
+
                                                                                 
                                                                                 E
                                                       C   C   C       -----------
@@ -32,6 +33,7 @@ WWWWWWWWWWWWWWWWWWWWWWWWWWWWWWWWWWWWWWWWWWWWWWWWWWWWWWWWWWWWWWWWWWWWWWWWWWWWWWWW
 ---------------------------------------------------------------------------------
 
 level 2:
+biome: desert
 
 ---------------------------------------------------------------------------------
                                                                                 
@@ -53,6 +55,7 @@ WWWWWWWWWWWWWWWWWWWWWWWWWWWWWWWWWWWWWWWWWWWWWWWWWWWWWWWWWWWWWWWWWWWWWWWWWWWWWWWW
 ----------------------------------------------------------------------------------
 
 level 3:
+biome: stone
 
 ---------------------------------------------------------------------------------
                                                                                  
@@ -72,6 +75,7 @@ WWWWWWWWWWWWWWWWWWWWWWWWWWWWWWWWWWWWWWWWWWWWWWWWWWWWWWWWWWWWWWWWWWWWWWWWWWWWWWWW
 ---------------------------------------------------------------------------------
 
 level 4:
+biome: mushroom
 
 ---------------------------------------------------------------------------------
               ?                                                                   
@@ -98,6 +102,7 @@ WWWWWWWWWWWWWWWWWWWWWWWWWWWWW                WWWWWWWWWWWWWWWWWWWWWWWWWWWWWWWWWWW
 # # : Stair / Ladder
 
 level 5:
+biome: snow
 
 ---------------------------------------------------------------------------------
                                                                                  - 
