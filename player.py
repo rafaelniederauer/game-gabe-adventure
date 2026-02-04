@@ -134,49 +134,62 @@ class Player(pygame.sprite.Sprite):
         # Note: WATER_JUMP has been increased in settings.py to help exit water surfaces
 
     def horizontal_collisions(self):
-        self.rect.x += self.direction.x * self.speed
+        self.hitbox.x += self.direction.x * self.speed
+        
+        # Use a temporary vertically-shrunk hitbox for collision checks
+        # This prevents detecting the floor as a side collision
+        check_hitbox = self.hitbox.inflate(0, -2)
         
         for sprite in self.obstacle_sprites:
-            if sprite.rect.colliderect(self.rect):
+            if sprite.rect.colliderect(check_hitbox):
                 # Check for movable boxes
                 if hasattr(sprite, 'sprite_type') and sprite.sprite_type == 'box':
                     # If player is pushing the box
                     if self.direction.x > 0: # Pushing right
                         if sprite.push(pygame.math.Vector2(1, 0)):
-                            self.rect.right = sprite.rect.left
+                            self.hitbox.right = sprite.rect.left
                         else:
-                            self.rect.right = sprite.rect.left
+                            self.hitbox.right = sprite.rect.left
                     elif self.direction.x < 0: # Pushing left
                         if sprite.push(pygame.math.Vector2(-1, 0)):
-                            self.rect.left = sprite.rect.right
+                            self.hitbox.left = sprite.rect.right
                         else:
-                            self.rect.left = sprite.rect.right
+                            self.hitbox.left = sprite.rect.right
                 else:
                     if self.direction.x > 0: # Moving right
-                        self.rect.right = sprite.rect.left
+                        self.hitbox.right = sprite.rect.left
                     elif self.direction.x < 0: # Moving left
-                        self.rect.left = sprite.rect.right
+                        self.hitbox.left = sprite.rect.right
+                
+        self.rect.centerx = self.hitbox.centerx
 
     def vertical_collisions(self):
         self.apply_gravity()
+        self.hitbox.y = self.rect.y + (self.rect.height - self.hitbox.height) // 2 # Sync hitbox with applied gravity move
         
         for sprite in self.obstacle_sprites:
-            if sprite.rect.colliderect(self.rect):
+            if sprite.rect.colliderect(self.hitbox):
                 if self.direction.y > 0: # Falling
-                    self.rect.bottom = sprite.rect.top
+                    self.hitbox.bottom = sprite.rect.top
+                    self.rect.bottom = self.hitbox.bottom + (self.rect.height - self.hitbox.height) // 2
                     self.direction.y = 0
                     self.on_ground = True
                 elif self.direction.y < 0: # Jumping
-                    self.rect.top = sprite.rect.bottom
+                    self.hitbox.top = sprite.rect.bottom
+                    self.rect.top = self.hitbox.top - (self.rect.height - self.hitbox.height) // 2
                     self.direction.y = 0
                     if hasattr(sprite, 'hit'):
                         sprite.hit()
-                else: # Standing still but overlapping (e.g., spawn)
-                    if self.rect.centery < sprite.rect.centery:
-                        self.rect.bottom = sprite.rect.top
+                else: # Standing still but overlapping
+                    if self.hitbox.centery < sprite.rect.centery:
+                        self.hitbox.bottom = sprite.rect.top
+                        self.rect.bottom = self.hitbox.bottom + (self.rect.height - self.hitbox.height) // 2
                         self.on_ground = True
                     else:
-                        self.rect.top = sprite.rect.bottom
+                        self.hitbox.top = sprite.rect.bottom
+                        self.rect.top = self.hitbox.top - (self.rect.height - self.hitbox.height) // 2
+                
+                self.rect.y = self.hitbox.y - (self.rect.height - self.hitbox.height) // 2
                     
         if self.on_ground and (self.direction.y < 0 or self.direction.y > 1):
             self.on_ground = False

@@ -11,6 +11,7 @@
 # X : Enemy
 # Y : Follower Enemy
 # ? : Lucky Block
+# L : Lava
 level 1:
 biome: forest
 
@@ -46,11 +47,11 @@ biome: desert
     ---------                                      C                         
                                                  -----          --------------            
                                                                            
-                                                                       B  
+                  B                                                     B  
 ----------------------                                    ------------------------
-WWWWWWWWWWWWWWWWWWWWWWWWWWWWWWWWWWWWWWWWWWWWWWWWWWWWWWWWWWWWWWWWWWWWWWWWWWWWWWWWWW
-WWWWWWWWWWWWWWWWWWWWWWWWWWWWWWWWWWWWWWWWWWWWWWWWWWWWWWWWWWWWWWWWWWWWWWWWWWWWWWWWWW
-WWWWWWWWWWWWWWWWWWWWWWWWWWWWWWWWWWWWWWWWWWWWWWWWWWWWWWWWWWWWWWWWWWWWWWWWWWWWWWWWWW
+LLLLLLLLLLLLLLLLLLLLLLLLLLLLLLLLLLLLLLLLLLLLLLLLLLLLLLLLLLLLLLLLLLLLLLLLLLLLLLLLLL
+LLLLLLLLLLLLLLLLLLLLLLLLLLLLLLLLLLLLLLLLLLLLLLLLLLLLLLLLLLLLLLLLLLLLLLLLLLLLLLLLLL
+LLLLLLLLLLLLLLLLLLLLLLLLLLLLLLLLLLLLLLLLLLLLLLLLLLLLLLLLLLLLLLLLLLLLLLLLLLLLLLLLLL
 ----------------------------------------------------------------------------------
 ----------------------------------------------------------------------------------
 
@@ -69,9 +70,9 @@ biome: stone
             C   C                                                -               -
           ---------            S        X     S               C  -            -
                            -----------------------             -                 -
-   1                 X                                              -             -
+   1                 X         B                                    -             -
  --------------------------   -------------------   ----------                   -
-WWWWWWWWWWWWWWWWWWWWWWWWWWWWWWWWWWWWWWWWWWWWWWWWWWWWWWWWWWWWWWWWWWWWWWWWWWWWWWWW-
+WWWWWWWWWWWWWWWWWWWWWWWWWWWWWWWWWWWWWWWWWWWWWWWWWWWWWWWWWWWWWWWWWWWWWWWWWWWWWWWWWW-
 ---------------------------------------------------------------------------------
 
 level 4:

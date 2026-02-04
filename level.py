@@ -32,41 +32,112 @@ class Tile(pygame.sprite.Sprite):
         self.rect = self.image.get_rect(topleft=pos)
 
 class Box(pygame.sprite.Sprite):
-    def __init__(self, pos, groups, obstacle_sprites):
+    def __init__(self, pos, groups, obstacle_sprites, lava_sprites, water_sprites):
         super().__init__(groups)
         self.sprite_type = 'box'
         self.image = pygame.image.load(f'{TILE_ASSETS}/block_planks.png').convert_alpha()
         self.rect = self.image.get_rect(topleft=pos)
         self.obstacle_sprites = obstacle_sprites
+        self.lava_sprites = lava_sprites
+        self.water_sprites = water_sprites
         self.direction = pygame.math.Vector2()
         self.gravity = GRAVITY
+        self.on_ground = False
+        self.in_liquid = False
+        self.player = None # Will be set by Level
 
     def push(self, direction):
-        # Move box
-        self.rect.x += direction.x * BOX_SPEED
-        # Check for collisions with other obstacles
-        for sprite in self.obstacle_sprites:
-            if sprite != self and sprite.rect.colliderect(self.rect):
-                if direction.x > 0: self.rect.right = sprite.rect.left
-                if direction.x < 0: self.rect.left = sprite.rect.right
-                return False
+        # Set horizontal momentum
+        self.direction.x = direction.x * BOX_SPEED
         return True
 
     def apply_gravity(self):
+        # Buoyancy logic: Check if colliding with lava or water
+        liquid_sprites = pygame.sprite.Group(self.lava_sprites.sprites() + self.water_sprites.sprites())
+        in_liquid_sprites = pygame.sprite.spritecollide(self, liquid_sprites, False)
+        
+        self.in_liquid = bool(in_liquid_sprites)
+        if self.in_liquid:
+            # Float on top of the first liquid block found
+            liquid_block = in_liquid_sprites[0]
+            # If the box is below the top of the liquid, push it up
+            if self.rect.bottom > liquid_block.rect.top:
+                self.rect.bottom = liquid_block.rect.top
+                self.direction.y = 0
+            self.on_ground = False
+            return # Skip normal gravity calculation
+
         self.direction.y += self.gravity
         self.rect.y += self.direction.y
         
+        self.on_ground = False
         for sprite in self.obstacle_sprites:
             if sprite != self and sprite.rect.colliderect(self.rect):
                 if self.direction.y > 0:
                     self.rect.bottom = sprite.rect.top
                     self.direction.y = 0
+                    self.on_ground = True
                 elif self.direction.y < 0:
                     self.rect.top = sprite.rect.bottom
                     self.direction.y = 0
 
+    def horizontal_move(self):
+        if self.direction.x != 0:
+            # If in liquid, move slowly (e.g., 1px) in the direction of momentum
+            if self.in_liquid:
+                speed = 1 if self.direction.x > 0 else -1
+            else:
+                speed = self.direction.x
+
+            # Check if player is on top before moving
+            player_on_top = False
+            if self.player:
+                # Tighten overlap check: player's feet should be on box's top
+                # Use hitbox for more precision
+                if self.player.on_ground and abs(self.player.hitbox.bottom - self.rect.top) < 5:
+                    if self.player.hitbox.right > self.rect.left and self.player.hitbox.left < self.rect.right:
+                        player_on_top = True
+
+            self.rect.x += speed
+            
+            # If player was on top, move them with the box
+            if player_on_top and self.player:
+                self.player.hitbox.x += speed
+                self.player.rect.centerx = self.player.hitbox.centerx
+            
+            # Check for collisions with obstacles
+            for sprite in self.obstacle_sprites:
+                if sprite != self and sprite.rect.colliderect(self.rect):
+                    if speed > 0:
+                        self.rect.right = sprite.rect.left
+                        if self.in_liquid:
+                            self.direction.x *= -1 # Bounce back
+                        else:
+                            self.direction.x = 0
+                    elif speed < 0:
+                        self.rect.left = sprite.rect.right
+                        if self.in_liquid:
+                            self.direction.x *= -1 # Bounce back
+                        else:
+                            self.direction.x = 0
+            
+            # Check if we pushed the player horizontally (if they weren't on top)
+            if self.player and not player_on_top:
+                if self.rect.colliderect(self.player.hitbox):
+                    if speed > 0:
+                        self.player.hitbox.left = self.rect.right
+                    else:
+                        self.player.hitbox.right = self.rect.left
+                    self.player.rect.centerx = self.player.hitbox.centerx
+            
+            # Friction: If on solid ground, stop immediately after moving
+            if self.on_ground:
+                self.direction.x = 0
+
+
     def update(self):
         self.apply_gravity()
+        self.horizontal_move()
 
 class Coin(pygame.sprite.Sprite):
     def __init__(self, pos, groups):
@@ -94,6 +165,13 @@ class Water(pygame.sprite.Sprite):
         super().__init__(groups)
         self.sprite_type = 'water'
         self.image = pygame.image.load(f'{TILE_ASSETS}/water_top.png').convert_alpha()
+        self.rect = self.image.get_rect(topleft=pos)
+
+class Lava(pygame.sprite.Sprite):
+    def __init__(self, pos, groups):
+        super().__init__(groups)
+        self.sprite_type = 'lava'
+        self.image = pygame.image.load(f'{TILE_ASSETS}/lava_top.png').convert_alpha()
         self.rect = self.image.get_rect(topleft=pos)
 
 class Enemy(pygame.sprite.Sprite):
@@ -337,6 +415,7 @@ class Level:
         self.coin_sprites = pygame.sprite.Group()
         self.hazard_sprites = pygame.sprite.Group()
         self.water_sprites = pygame.sprite.Group()
+        self.lava_sprites = pygame.sprite.Group()
         self.exit_sprites = pygame.sprite.Group()
         self.enemy_sprites = pygame.sprite.Group()
         self.item_sprites = pygame.sprite.Group()
@@ -415,13 +494,15 @@ class Level:
                         
                         Tile((x, y), [self.visible_sprites, self.obstacle_sprites], 'ground', tile_biome)
                     elif cell == 'B':
-                        Box((x, y), [self.visible_sprites, self.active_sprites, self.obstacle_sprites], self.obstacle_sprites)
+                        Box((x, y), [self.visible_sprites, self.active_sprites, self.obstacle_sprites], self.obstacle_sprites, self.lava_sprites, self.water_sprites)
                     elif cell == 'C':
                         Coin((x, y), [self.visible_sprites, self.coin_sprites, self.active_sprites])
                     elif cell == 'S':
                         Tile((x, y), [self.visible_sprites, self.hazard_sprites], 'spikes', self.biome)
                     elif cell == 'W':
                         Water((x, y), [self.visible_sprites, self.water_sprites])
+                    elif cell == 'L':
+                        Lava((x, y), [self.visible_sprites, self.lava_sprites, self.hazard_sprites])
                     elif cell == '1':
                         Tile((x, y), [self.visible_sprites], 'start', self.biome)
                         self.spawn_pos = (x, y)
@@ -450,9 +531,9 @@ class Level:
 
             self.player = Player(spawn_pos, [self.visible_sprites, self.active_sprites], self.obstacle_sprites)
         
-            # Pass player reference to follower enemies
-            for sprite in self.enemy_sprites:
-                if isinstance(sprite, FollowerEnemy):
+            # Pass player reference to follower enemies and boxes
+            for sprite in self.visible_sprites:
+                if hasattr(sprite, 'player'):
                     sprite.player = self.player
             
         except FileNotFoundError:
@@ -495,14 +576,19 @@ class Level:
             self.score += len(collided_coins)
 
     def hazard_collision(self):
-        if pygame.sprite.spritecollide(self.player, self.hazard_sprites, False):
-            self.player.get_damage()
+        # Use player hitbox for more precise hazard detection (lava, etc.)
+        for sprite in self.hazard_sprites:
+            if sprite.rect.colliderect(self.player.hitbox):
+                self.player.get_damage()
+                break
             
     def water_collision(self):
-        if pygame.sprite.spritecollide(self.player, self.water_sprites, False):
-            self.player.in_water = True
-        else:
-            self.player.in_water = False
+        # Use player hitbox for water detection
+        self.player.in_water = False
+        for sprite in self.water_sprites:
+            if sprite.rect.colliderect(self.player.hitbox):
+                self.player.in_water = True
+                break
 
     def enemy_collision(self):
         if pygame.sprite.spritecollide(self.player, self.enemy_sprites, False):
